@@ -1,0 +1,4 @@
+PyQt5
+ffmpeg-python
+PyQt5-sip
+pyinstaller
