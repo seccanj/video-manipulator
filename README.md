@@ -18,9 +18,9 @@ Video files are examined for the contained streams.
 You can see all contained streams by clicking on the arrow icon.
 
 Once you have a video imported, you can do several things with it:
-a. select one or more contained video streams and click "Extract video". This will extract each selected video stream into its own file.
-b. select one or more contained audio streams and click "Extract audio". This will extract each selected audio stream into its own file.
-c. select one or more contained subtitle streams and click "Extract subtitle". This will extract each selected subtitle stream into its own file.
+1. select one or more contained video streams and click "Extract video". This will extract each selected video stream into its own file.
+2. select one or more contained audio streams and click "Extract audio". This will extract each selected audio stream into its own file.
+3. select one or more contained subtitle streams and click "Extract subtitle". This will extract each selected subtitle stream into its own file.
 
 With the "Merge" function you can create a new video file that contains your desired video, audio and subtitle streams.
 
