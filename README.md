@@ -10,6 +10,8 @@ A GUI application for video manipulation that provides a graphical interface to 
 - **User-friendly Interface**: Intuitive GUI for easy stream selection and manipulation
 - **FFmpeg Integration**: Leverages the power of FFmpeg for reliable media processing
 
+![alt text](img/video-manipulator-sample-01.png)
+
 ## How to use
 
 After launching the application (see Setup), you should first import one or more files to work on: video, audio and subtitles (in srt format).
