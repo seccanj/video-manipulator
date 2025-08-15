@@ -1,7 +1,7 @@
 from PyQt5.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QPushButton, QFileDialog, QLabel, QHBoxLayout,
     QTableWidget, QTableWidgetItem, QAbstractItemView, QHeaderView, QStyle, QStyleOptionButton, QMessageBox,
-    QApplication
+    QApplication, QToolBar, QAction, QFrame, QSplitter
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QIcon
@@ -14,14 +14,91 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Video Manipulator")
-        self.setGeometry(100, 100, 800, 600)
+        self.setGeometry(100, 100, 1000, 700)
 
+        # Create central widget and main layout
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
+        self.main_layout = QVBoxLayout()
+        self.central_widget.setLayout(self.main_layout)
 
-        self.layout = QVBoxLayout()
-        self.central_widget.setLayout(self.layout)
+        # Create toolbar
+        self.create_toolbar()
 
+        # Create main content area
+        self.create_main_content()
+
+        # Initialize data structures
+        self.expanded_rows = set()  # Track which rows are expanded
+        self.file_streams = {}  # Store ffprobe info for each file
+
+        # Enable drag and drop
+        self.setAcceptDrops(True)
+
+    def create_toolbar(self):
+        """Create the main toolbar with organized action groups"""
+        self.toolbar = QToolBar()
+        self.addToolBar(self.toolbar)
+        
+        # File Operations Group
+        self.toolbar.addSeparator()
+        
+        # Add File action
+        self.add_file_action = QAction("Add Files", self)
+        self.add_file_action.setStatusTip("Add video, audio, or subtitle files")
+        self.add_file_action.triggered.connect(self.add_file)
+        self.toolbar.addAction(self.add_file_action)
+        
+        # Clear List action
+        self.clear_list_action = QAction("Clear List", self)
+        self.clear_list_action.setStatusTip("Clear all files from the list")
+        self.clear_list_action.triggered.connect(self.clear_list)
+        self.toolbar.addAction(self.clear_list_action)
+        
+        self.toolbar.addSeparator()
+        
+        # Extract Video action
+        self.extract_video_action = QAction("Extract Video", self)
+        self.extract_video_action.setStatusTip("Extract selected video streams")
+        self.extract_video_action.triggered.connect(self.extract_video)
+        self.toolbar.addAction(self.extract_video_action)
+        
+        # Extract Audio action
+        self.extract_audio_action = QAction("Extract Audio", self)
+        self.extract_audio_action.setStatusTip("Extract selected audio streams")
+        self.extract_audio_action.triggered.connect(self.extract_audio)
+        self.toolbar.addAction(self.extract_audio_action)
+        
+        # Extract Subtitle action
+        self.extract_subtitle_action = QAction("Extract Subtitles", self)
+        self.extract_subtitle_action.setStatusTip("Extract selected subtitle streams")
+        self.extract_subtitle_action.triggered.connect(self.extract_subtitle)
+        self.toolbar.addAction(self.extract_subtitle_action)
+        
+        self.toolbar.addSeparator()
+        
+        # Merge Files action
+        self.merge_action = QAction("Merge Files", self)
+        self.merge_action.setStatusTip("Merge selected streams into a new video file")
+        self.merge_action.triggered.connect(self.merge_files)
+        self.toolbar.addAction(self.merge_action)
+
+    def create_main_content(self):
+        """Create the main content area with file table and status"""
+        # Create a splitter for potential future expansion
+        self.content_splitter = QSplitter(Qt.Vertical)
+        self.main_layout.addWidget(self.content_splitter)
+        
+        # File table area
+        self.table_widget = QWidget()
+        self.table_layout = QVBoxLayout()
+        self.table_widget.setLayout(self.table_layout)
+        
+        # Table header
+        table_header = QLabel("Media Files and Streams")
+        table_header.setStyleSheet("font-weight: bold; font-size: 14px; padding: 5px;")
+        self.table_layout.addWidget(table_header)
+        
         # Main file table
         self.file_table = QTableWidget()
         self.file_table.setColumnCount(4)
@@ -31,39 +108,34 @@ class MainWindow(QMainWindow):
         self.file_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.file_table.verticalHeader().setVisible(False)
         self.file_table.cellClicked.connect(self.toggle_expand_row)
-        self.layout.addWidget(self.file_table)
-
-        self.expanded_rows = set()  # Track which rows are expanded
-
-        self.add_file_button = QPushButton("Add File")
-        self.add_file_button.clicked.connect(self.add_file)
-        self.layout.addWidget(self.add_file_button)
-
-        self.extract_video_button = QPushButton("Extract Video")
-        self.extract_video_button.clicked.connect(self.extract_video)
-        self.layout.addWidget(self.extract_video_button)
-
-        self.extract_audio_button = QPushButton("Extract Audio")
-        self.extract_audio_button.clicked.connect(self.extract_audio)
-        self.layout.addWidget(self.extract_audio_button)
-
-        self.extract_subtitle_button = QPushButton("Extract Subtitle")
-        self.extract_subtitle_button.clicked.connect(self.extract_subtitle)
-        self.layout.addWidget(self.extract_subtitle_button)
-
-        self.merge_button = QPushButton("Merge Files")
-        self.merge_button.clicked.connect(self.merge_files)
-        self.layout.addWidget(self.merge_button)
-
-        self.clear_list_button = QPushButton("Clear List")
-        self.clear_list_button.clicked.connect(self.clear_list)
-        self.layout.addWidget(self.clear_list_button)
-
-        self.status_label = QLabel("")
-        self.layout.addWidget(self.status_label)
-
-        self.setAcceptDrops(True)
-        self.file_streams = {}  # Store ffprobe info for each file
+        self.file_table.setAlternatingRowColors(True)
+        self.table_layout.addWidget(self.file_table)
+        
+        # Instructions label
+        instructions = QLabel(
+            "Workflow: 1) Add files → 2) Extract streams → 3) Add extracted files → 4) Merge into new video"
+        )
+        instructions.setStyleSheet("color: #666; font-style: italic; padding: 5px;")
+        instructions.setWordWrap(True)
+        self.table_layout.addWidget(instructions)
+        
+        self.content_splitter.addWidget(self.table_widget)
+        
+        # Status area
+        self.status_widget = QWidget()
+        self.status_layout = QVBoxLayout()
+        self.status_widget.setLayout(self.status_layout)
+        
+        # Status label
+        self.status_label = QLabel("Ready to add files")
+        self.status_label.setStyleSheet("padding: 5px; background-color: #f0f0f0; border: 1px solid #ccc;")
+        self.status_label.setWordWrap(True)
+        self.status_layout.addWidget(self.status_label)
+        
+        self.content_splitter.addWidget(self.status_widget)
+        
+        # Set splitter proportions (table takes most space)
+        self.content_splitter.setSizes([600, 100])
 
     def add_file(self):
         options = QFileDialog.Options()
@@ -75,6 +147,7 @@ class MainWindow(QMainWindow):
             options=options
         )
         if files:
+            added_count = 0
             for file in files:
                 if file not in self.file_streams:
                     self.file_streams[file] = get_media_streams(file)
@@ -95,12 +168,23 @@ class MainWindow(QMainWindow):
                     font.setBold(True)
                     main_item.setFont(font)
 
+                    # Add caret icon for video files with multiple streams
+                    if file_type.lower() == "video" and len(streams) > 1:
+                        main_item.setText("▶ " + name)
+                        main_item.setData(Qt.UserRole + 2, "expandable")  # Mark as expandable
+
                     self.file_table.setItem(row, 0, main_item)  # Name column (index 0)
                     self.file_table.setItem(row, 1, QTableWidgetItem(file_type))
                     self.file_table.setItem(row, 2, QTableWidgetItem(file_format))
                     # Add language column for main file (use first stream's language if available)
                     language = stream.get("tags", {}).get("language", "")
                     self.file_table.setItem(row, 3, QTableWidgetItem(language))
+                    added_count += 1
+            
+            if added_count > 0:
+                self.status_label.setText(f"Added {added_count} file(s) to the list")
+            else:
+                self.status_label.setText("No new files were added")
 
     def toggle_expand_row(self, row, column):
         # Only expand/collapse if clicking on the name column and is a video file
@@ -110,6 +194,11 @@ class MainWindow(QMainWindow):
         if not file_type_item or file_type_item.text().lower() != "video":
             return
 
+        # Check if this video file is expandable (has multiple streams)
+        main_item = self.file_table.item(row, 0)
+        if not main_item or main_item.data(Qt.UserRole + 2) != "expandable":
+            return
+
         # Collapse if already expanded
         if row in self.expanded_rows:
             # Remove all expanded stream rows below this video row
@@ -117,17 +206,16 @@ class MainWindow(QMainWindow):
                    self.file_table.item(row + 1, 0) and
                    self.file_table.item(row + 1, 0).data(Qt.UserRole) == "stream"):
                 self.file_table.removeRow(row + 1)
-            # Remove expand indicator from the main row
-            main_item = self.file_table.item(row, 0)
+            # Change caret to right (collapsed)
             original_text = main_item.data(Qt.UserRole + 1)
             if original_text:
-                main_item.setText(original_text)
-                main_item.setData(Qt.UserRole + 1, None)  # Clear stored text
+                main_item.setText("▶ " + original_text)
+                main_item.setData(Qt.UserRole + 1, original_text)  # Keep stored text
             self.expanded_rows.remove(row)
             return
 
         # Expand: insert new rows below, one for each stream
-        file_name = self.file_table.item(row, 0).text()
+        file_name = self._get_original_filename(row)
         input_file = next((f for f in self.file_streams.keys() if os.path.basename(f) == file_name), None)
         if input_file is None:
             return
@@ -148,9 +236,8 @@ class MainWindow(QMainWindow):
             self.file_table.setItem(insert_at, 3, QTableWidgetItem(language))
             insert_at += 1
 
-        # Add expand indicator to the main row
-        main_item = self.file_table.item(row, 0)
-        original_text = main_item.text()
+        # Change caret to down (expanded)
+        original_text = main_item.data(Qt.UserRole + 1) or file_name
         main_item.setText("▼ " + original_text)
         main_item.setData(Qt.UserRole + 1, original_text)  # Store original text
         self.expanded_rows.add(row)
@@ -160,6 +247,7 @@ class MainWindow(QMainWindow):
             event.acceptProposedAction()
 
     def dropEvent(self, event):
+        added_count = 0
         for url in event.mimeData().urls():
             file_path = url.toLocalFile()
             if os.path.isfile(file_path):
@@ -178,9 +266,23 @@ class MainWindow(QMainWindow):
                     font = name_item.font()
                     font.setBold(True)
                     name_item.setFont(font)
+                    
+                    # Add caret icon for video files with multiple streams
+                    if file_type.lower() == "video" and len(streams) > 1:
+                        name_item.setText("▶ " + os.path.basename(file_path))
+                        name_item.setData(Qt.UserRole + 2, "expandable")  # Mark as expandable
+                    
                     self.file_table.setItem(row, 0, name_item)
                     self.file_table.setItem(row, 1, QTableWidgetItem(file_type))
                     self.file_table.setItem(row, 2, QTableWidgetItem(file_format))
+                    # Add language column for main file
+                    language = stream.get("tags", {}).get("language", "")
+                    self.file_table.setItem(row, 3, QTableWidgetItem(language))
+                    added_count += 1
+        
+        if added_count > 0:
+            self.status_label.setText(f"Added {added_count} file(s) via drag and drop")
+        event.acceptProposedAction()
 
     def extract_video(self):
         selected_rows = self.file_table.selectionModel().selectedRows()
@@ -350,8 +452,12 @@ class MainWindow(QMainWindow):
             base, _ = os.path.splitext(input_file)
             lang = audio_stream.get("tags", {}).get("language", "")
             title = audio_stream.get("tags", {}).get("title", f"audio_{audio_index}")
-            # Make output file unique per stream
-            output_file = f"{base}_audio_{audio_index}{output_ext}"
+            
+            # Use language code in filename if available, otherwise use index
+            if lang:
+                output_file = f"{base}_audio_{lang}{output_ext}"
+            else:
+                output_file = f"{base}_audio_{audio_index}{output_ext}"
 
             # Overwrite dialog
             if os.path.exists(output_file):
@@ -448,9 +554,14 @@ class MainWindow(QMainWindow):
 
         for input_file, subtitle_stream in subtitle_streams_to_extract:
             subtitle_index = subtitle_stream.get("index", 0)
-            lang = subtitle_stream.get("tags", {}).get("language", f"{subtitle_index:02d}")
+            lang = subtitle_stream.get("tags", {}).get("language", "")
             base, _ = os.path.splitext(input_file)
-            output_file = f"{base}_subtitle_{lang}_{subtitle_index}.srt"
+            
+            # Use language code in filename if available, otherwise use index
+            if lang:
+                output_file = f"{base}_subtitle_{lang}.srt"
+            else:
+                output_file = f"{base}_subtitle_{subtitle_index}.srt"
 
             # Overwrite dialog
             if os.path.exists(output_file):
@@ -701,7 +812,7 @@ class MainWindow(QMainWindow):
         self.file_table.setRowCount(0)
         self.file_streams.clear()
         self.expanded_rows.clear()
-        self.status_label.setText("List cleared.")
+        self.status_label.setText("File list cleared. Ready to add new files.")
 
     def _get_original_filename(self, row):
         """Helper to get the original filename from a table row, removing any expand indicators"""
@@ -709,8 +820,8 @@ class MainWindow(QMainWindow):
         if not item:
             return ""
         filename = item.data(Qt.UserRole + 1) or item.text()
-        # Remove "▼ " prefix if present
-        if filename.startswith("▼ "):
+        # Remove "▼ " or "▶ " prefix if present
+        if filename.startswith("▼ ") or filename.startswith("▶ "):
             filename = filename[2:]
         return filename
 
